@@ -328,6 +328,15 @@ h1,h2,h3,.label,.btn,.title{font-family:'Cinzel', serif;}
 /* ---------- Chronicle ---------- */
 .chronicle{max-height:230px; overflow-y:auto; font-size:13px; color:var(--text-dim);}
 .chronicle .entry{padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04);}
+
+/* ---------- Footer links ---------- */
+.app-footer{
+  text-align:center; margin-top:28px; padding-top:18px; border-top:1px solid var(--border);
+  font-size:12px; letter-spacing:0.05em; text-transform:uppercase; color:var(--text-dim);
+}
+.footer-link{color:var(--text-dim); text-decoration:none; transition:color .15s;}
+.footer-link:hover{color:var(--gold);}
+.footer-sep{margin:0 12px; color:var(--border);}
 .chronicle .entry:last-child{border-bottom:none;}
 .chronicle .entry .turn-mark{color:var(--gold); font-family:'JetBrains Mono', monospace; margin-right:6px;}
 
@@ -574,6 +583,12 @@ h1,h2,h3,.label,.btn,.title{font-family:'Cinzel', serif;}
       <div class="chronicle" id="chronicle"></div>
     </div>
   </div>
+
+  <div class="app-footer">
+    <a href="https://www.speedrun.com/Ashes_of_Vaelmoor" target="_blank" rel="noopener noreferrer" class="footer-link">Speedrun.com Leaderboards</a>
+    <span class="footer-sep">·</span>
+    <a href="https://discord.com/invite/HUgRTHjzS" target="_blank" rel="noopener noreferrer" class="footer-link" id="discordLink">Join the Discord</a>
+  </div>
 </div>
 
 <div class="overlay" id="overlay">
@@ -650,42 +665,6 @@ const CHARACTERS = {
       trusted:"Ilun has started teaching you the old wards properly, trusting you with what's left of the old faith.",
       devoted:"Ilun believes, plainly and without hedging, that you are not what the Unmaker made your father into."
     }
-  },
-  dessa:{
-    id:'dessa', name:'Lady Dessa Wrenmoor', role:'Court Envoy',
-    color:'#4a7a6a', startTrust:50,
-    bio:"A diplomat who has talked three rival lords out of war this year alone, and would rather talk a fourth out of it than bury more soldiers.",
-    bands:{
-      hostile:"Dessa is icily polite, the way a courtier is to a lord she's already written off.",
-      wary:"Dessa does her work competently but keeps her real opinions to her letters, not to your face.",
-      neutral:"Dessa advises you plainly when asked, and not a great deal more than that.",
-      trusted:"Dessa speaks to you the way she speaks to lords she actually respects — directly, and often inconveniently.",
-      devoted:"Dessa has started drafting treaties in your name without being asked, certain you'll want what she wants."
-    }
-  },
-  brask:{
-    id:'brask', name:'Captain Hale Brask', role:'Mercenary Captain',
-    color:'#9a7a2e', startTrust:50,
-    bio:"A free company captain who switched sides twice before yours and has never once apologized for it. Loyalty, to Brask, is just the going rate.",
-    bands:{
-      hostile:"Brask does the job and not one thing more. You get the distinct sense he's still pricing better offers.",
-      wary:"Brask is professionally pleasant, the way a man is when he hasn't decided if you're worth the contract yet.",
-      neutral:"Brask does solid, unglamorous work and asks for nothing beyond his pay.",
-      trusted:"Brask has stopped mentioning his rate. That, from him, is practically a love letter.",
-      devoted:"Brask would turn down a better offer for you now, which he will be the first to admit terrifies him."
-    }
-  },
-  yenna:{
-    id:'yenna', name:'Yenna Marrow', role:'Field Physician',
-    color:'#5a6a9a', startTrust:55,
-    bio:"A battlefield healer who has pulled more soldiers back from the edge than anyone else in Vaelmoor, and has opinions about how casually you spend the ones she saves.",
-    bands:{
-      hostile:"Yenna treats your wounded efficiently and says almost nothing to you directly.",
-      wary:"Yenna is professional, but her reports about the cost of your campaigns have gotten pointed.",
-      neutral:"Yenna does her work well and trusts you about as much as any commander who keeps spending lives.",
-      trusted:"Yenna talks to you now like someone she believes is actually trying to spend lives carefully.",
-      devoted:"Yenna has stopped keeping a tally of what your campaigns cost. She used to keep that tally for everyone."
-    }
   }
 };
 
@@ -706,10 +685,7 @@ function trustLabel(v){
 const COMPANION_GIFTS = {
   korrath:'korrathWhetstone',
   seris:'serisCipher',
-  ilun:'ilunCandle',
-  dessa:'dessaSeal',
-  brask:'braskContract',
-  yenna:'yennaTincture'
+  ilun:'ilunCandle'
 };
 
 /* ---------- Companion Rivalries ----------
@@ -720,14 +696,10 @@ const COMPANION_GIFTS = {
    with one raises their trust and lowers the other's, and resets friction partway rather than
    fully, since picking a side doesn't erase the underlying disagreement.
 ------------------------------------------------------------------ */
-const RIVALRY_PAIRS = [
-  {a:'korrath', b:'dessa', theme:'force vs. diplomacy'},
-  {a:'seris', b:'dessa', theme:'secrecy vs. openness'},
-  {a:'korrath', b:'yenna', theme:'spending soldiers vs. protecting them'},
-  {a:'brask', b:'korrath', theme:'mercenary pragmatism vs. military discipline'},
-  {a:'ilun', b:'brask', theme:'old faith vs. coin-driven pragmatism'},
-  {a:'seris', b:'yenna', theme:'risking people for intelligence vs. refusing to'}
-];
+// Rivalry pairs were built around companions that have since been removed from the game.
+// Left empty rather than deleting the whole rivalry subsystem — adjustFriction/checkRivalryTriggers
+// etc. all become safe no-ops with no pairs defined, so nothing else needs to change to support this.
+const RIVALRY_PAIRS = [];
 const RIVALRY_THRESHOLD=70;
 
 function rivalryKey(a,b){ return [a,b].sort().join('_'); }
@@ -785,9 +757,6 @@ function triggerDeparture(s, charId){
   if(charId==='korrath') text=`${ch.name} hands you her commission, formally, in front of the garrison. "I didn't survive this long taking orders I don't believe in. Find someone else to bleed for you." She rides out before dawn.`;
   if(charId==='seris') text=`${ch.name} leaves no note, no goodbye, nothing — just an empty room and a ledger left open to a page that simply reads: "Find your own secrets now."`;
   if(charId==='ilun') text=`${ch.name} sets down the cracked shard of the Ember Throne on your table, gently, like something he's afraid of dropping. "I cannot ward a man who has stopped wanting to be warded." He does not look back.`;
-  if(charId==='dessa') text=`${ch.name} leaves behind a single, perfectly diplomatic letter of resignation, the kind that says nothing true and means every word of it. By the time you finish reading it, she is already gone from Ashveil Hold.`;
-  if(charId==='brask') text=`${ch.name} settles his account to the last copper before he goes — he is many things, but not, by his own accounting, a man who leaves owing anyone. "Nothing personal, lord. Just better terms elsewhere."`;
-  if(charId==='yenna') text=`${ch.name} packs only her instruments, leaving every gift you ever gave her on the table, neatly arranged. "I didn't save those men so you could spend the next ones the same way."`;
   logButterfly(s, charId, `${ch.name} has left Ashveil Hold for good.`, text);
   addLog(s, `${ch.name} has departed. ${text}`);
 }
@@ -1827,153 +1796,6 @@ const EVENTS = [
       {label:"Let the garrison's reputation speak for itself (+ Soldiers)", run:s=>{ s.soldiers+=1; return "Fear is a cruder tool than goodwill, but it works just as well on a frightened populace. (+1 soldier)"; }}
     ]
   },
-
-  /* ===================== RIVALRY EVENTS ===================== */
-  {
-    id:'rivalry_dessa_korrath', category:'rivalry', speaker:'narrator',
-    title:"Force or Words",
-    text:"It finally comes to a head in the war-room. Korrath wants to march on the next target before its garrison can dig in further. Dessa wants three more days to try talking it into surrendering outright. Neither of them is backing down, and both of them are looking at you.",
-    choices:[
-      {label:"Side with Korrath — march now (+ Korrath trust, − Dessa trust, + Soldiers)", run:s=>{
-        adjustTrust(s,'korrath',8,'Sided with Korrath over Dessa on whether to negotiate.'); adjustTrust(s,'dessa',-8,'Overruled by Korrath in front of the war-room.');
-        s.soldiers+=2; adjustFriction(s,'korrath','dessa',-35);
-        return "Korrath doesn't gloat, exactly, but the set of her shoulders says enough. Dessa says nothing at all, which is worse. (Korrath trusts you more, Dessa trusts you less, +2 soldiers)";
-      }},
-      {label:"Side with Dessa — give her the three days (+ Dessa trust, − Korrath trust, + Faith)", run:s=>{
-        adjustTrust(s,'dessa',8,'Sided with Dessa over Korrath on whether to negotiate.'); adjustTrust(s,'korrath',-8,'Overruled by Dessa in front of the war-room.');
-        s.faith+=3; adjustFriction(s,'korrath','dessa',-35);
-        return "Dessa gets her three days. Korrath salutes correctly, says nothing incorrect, and you both know exactly how she feels about it anyway. (Dessa trusts you more, Korrath trusts you less, +3 faith)";
-      }},
-      {label:"Refuse to choose — split the difference (small loss for both, friction lingers)", run:s=>{
-        adjustTrust(s,'korrath',-3,'Watched you refuse to back either side.'); adjustTrust(s,'dessa',-3,'Watched you refuse to back either side.');
-        adjustFriction(s,'korrath','dessa',-10);
-        return "You give them a single day to find a compromise. They find one, technically, but neither of them is satisfied with it, and neither, you suspect, is done with this argument. (Both trust you slightly less)";
-      }}
-    ]
-  },
-  {
-    id:'rivalry_dessa_seris', category:'rivalry', speaker:'narrator',
-    title:"Secrets or the Table",
-    text:"Seris has leverage on a rival lord — something quiet, something that would make negotiations trivially easy if used as pressure. Dessa is furious about it. 'Blackmail isn't diplomacy, it's a loan you take out against your own reputation. Use it, and I can't promise you a fair table again.'",
-    choices:[
-      {label:"Use Seris's leverage (+ Seris trust, − Dessa trust, weakens a random garrison)", run:s=>{
-        adjustTrust(s,'seris',8,'Backed using leverage over Dessa\'s objection.'); adjustTrust(s,'dessa',-8,'Watched you choose blackmail over her diplomacy.');
-        adjustFriction(s,'seris','dessa',-35);
-        const targets=s.territories.filter(t=>!t.conquered && !t.final);
-        if(targets.length>0){ const t=targets[Math.floor(Math.random()*targets.length)]; t.garrison=Math.max(2,t.garrison-3); return `Seris's leverage works exactly as well as she promised. ${t.name}'s garrison quietly stands down its readiness. (Seris trusts you more, Dessa trusts you less, ${t.name}'s garrison weakened)`; }
-        return "Seris's leverage works exactly as well as she promised, though there's no one left to use it on. (Seris trusts you more, Dessa trusts you less)";
-      }},
-      {label:"Refuse the leverage, trust Dessa's table (+ Dessa trust, − Seris trust, + Faith)", run:s=>{
-        adjustTrust(s,'dessa',8,'Backed honest diplomacy over Seris\'s leverage.'); adjustTrust(s,'seris',-8,'Watched you throw away good leverage on principle.');
-        s.faith+=4; adjustFriction(s,'seris','dessa',-35);
-        return "You burn the leverage, unused. Dessa looks almost surprised. Seris looks like she's recalculating something about you entirely. (Dessa trusts you more, Seris trusts you less, +4 faith)";
-      }},
-      {label:"Keep the leverage in reserve, decide nothing (small loss for both, friction lingers)", run:s=>{
-        adjustTrust(s,'seris',-3,'Watched you stall on using her leverage.'); adjustTrust(s,'dessa',-3,'Watched you stall on rejecting the leverage outright.');
-        adjustFriction(s,'seris','dessa',-10);
-        return "You table the decision. Seris files the leverage away for later, unimpressed. Dessa doesn't trust that you won't use it eventually, and she's not wrong to wonder. (Both trust you slightly less)";
-      }}
-    ]
-  },
-  {
-    id:'rivalry_korrath_yenna', category:'rivalry', speaker:'narrator',
-    title:"The Cost of the Next Battle",
-    text:"Korrath wants to press the campaign immediately, while momentum favors you. Yenna is blunt about the math: your soldiers haven't recovered from the last engagement, and pressing now means real, countable deaths that a few days of rest would prevent. 'I am not asking you to be soft, my lord. I am asking you to be honest about what 'momentum' actually costs.'",
-    choices:[
-      {label:"Press the campaign now (+ Korrath trust, − Yenna trust, + Soldiers committed sooner)", run:s=>{
-        adjustTrust(s,'korrath',8,'Chose momentum over Yenna\'s objection.'); adjustTrust(s,'yenna',-9,'Watched you press the campaign against her explicit warning.');
-        adjustFriction(s,'korrath','yenna',-35);
-        return "Korrath has her momentum. Yenna says nothing further about it, which from her is its own kind of verdict. (Korrath trusts you more, Yenna trusts you noticeably less)";
-      }},
-      {label:"Take the days to rest first (+ Yenna trust, − Korrath trust, + Faith)", run:s=>{
-        adjustTrust(s,'yenna',8,'Chose rest over Korrath\'s push for momentum.'); adjustTrust(s,'korrath',-8,'Watched you delay the campaign on Yenna\'s advice.');
-        s.faith+=3; adjustFriction(s,'korrath','yenna',-35);
-        return "The army rests. Korrath accepts the order without arguing, which is somehow more pointed than if she had. Yenna doesn't thank you, but she doesn't need to. (Yenna trusts you more, Korrath trusts you less, +3 faith)";
-      }},
-      {label:"Split the difference — a single day's rest (small loss for both, friction lingers)", run:s=>{
-        adjustTrust(s,'korrath',-3,'Watched the compromise satisfy neither urgency nor caution.'); adjustTrust(s,'yenna',-3,'Watched the compromise satisfy neither urgency nor caution.');
-        adjustFriction(s,'korrath','yenna',-10);
-        return "One day. It isn't enough rest for Yenna and isn't enough momentum for Korrath, and you get the distinct sense you've only delayed this argument, not settled it. (Both trust you slightly less)";
-      }}
-    ]
-  },
-  {
-    id:'rivalry_brask_korrath', category:'rivalry', speaker:'narrator',
-    title:"Discipline or the Going Rate",
-    text:"Brask wants to pay a bonus to keep a unit of restless mercenaries from walking. Korrath is openly contemptuous of the idea. 'Soldiers who fight for a bonus fight for the next bonus, not for Vaelmoor. Pay them and you've taught every unit in this army what loyalty is actually worth here.'",
-    choices:[
-      {label:"Pay Brask's bonus (+ Brask trust, − Korrath trust, costs Gold, + Soldiers retained)", run:s=>{
-        if(s.gold<15){ return "There's no coin to pay it even if you wanted to. The argument resolves itself, unsatisfyingly, for lack of a treasury."; }
-        s.gold-=15; s.soldiers+=2;
-        adjustTrust(s,'brask',8,'Backed paying the mercenary bonus over Korrath\'s objection.'); adjustTrust(s,'korrath',-8,'Watched you pay mercenaries a bonus she explicitly warned against.');
-        adjustFriction(s,'brask','korrath',-35);
-        return "The bonus is paid. The unit stays. Korrath doesn't bring it up again, but she also doesn't forget it. (-15 gold, +2 soldiers, Brask trusts you more, Korrath trusts you less)";
-      }},
-      {label:"Back Korrath, refuse the bonus (+ Korrath trust, − Brask trust, risk losing the unit)", run:s=>{
-        adjustTrust(s,'korrath',8,'Backed discipline over Brask\'s mercenary bonus.'); adjustTrust(s,'brask',-8,'Watched you refuse the bonus he asked for on principle.');
-        adjustFriction(s,'brask','korrath',-35);
-        if(Math.random()<0.5){ s.soldiers=Math.max(0,s.soldiers-4); return "The unit walks, exactly as Brask warned. Korrath calls it an acceptable cost. Brask calls it 'I told you so' without ever actually saying those words. (-4 soldiers, Korrath trusts you more, Brask trusts you less)"; }
-        return "The unit grumbles but stays anyway — apparently loyalty wasn't only about the bonus after all. Korrath looks vindicated. Brask looks like he's recalculating his own theory of people. (Korrath trusts you more, Brask trusts you less)";
-      }},
-      {label:"Split it — a smaller bonus, quietly (small loss for both, friction lingers)", run:s=>{
-        if(s.gold>=8) s.gold-=8;
-        adjustTrust(s,'korrath',-3,'Watched the compromise undercut her point about discipline.'); adjustTrust(s,'brask',-3,'Watched the bonus get talked down to something smaller.');
-        adjustFriction(s,'brask','korrath',-10);
-        return "A smaller bonus, quietly arranged. It's enough to keep the unit and not quite enough to settle either Korrath's principles or Brask's professional pride. (Both trust you slightly less)";
-      }}
-    ]
-  },
-  {
-    id:'rivalry_ilun_brask', category:'rivalry', speaker:'narrator',
-    title:"Wards or Walls",
-    text:"Brask wants the coin earmarked for Ilun's warding rites spent on real fortifications instead. 'No offense to the Brother, my lord, but I've never seen a candle stop an arrow.' Ilun, for once, looks genuinely stung rather than serene about it.",
-    choices:[
-      {label:"Fund the wards (+ Ilun trust, − Brask trust, − Corruption)", run:s=>{
-        if(s.gold<15){ s.corruption=Math.max(0,s.corruption-3); return "There's barely enough coin for a smaller rite, but Ilun makes it work anyway. (-3 corruption)"; }
-        s.gold-=15; s.corruption=Math.max(0,s.corruption-6);
-        adjustTrust(s,'ilun',8,'Backed funding the wards over Brask\'s objection.'); adjustTrust(s,'brask',-7,'Watched you fund \'candles\' over fortifications, in his words.');
-        adjustFriction(s,'ilun','brask',-35);
-        return "The rite proceeds properly. Ilun doesn't say thank you in words, but something in his posture eases. Brask mutters something about candles under his breath, loud enough to be heard. (-15 gold, -6 corruption, Ilun trusts you more, Brask trusts you less)";
-      }},
-      {label:"Fund the walls (+ Brask trust, − Ilun trust, + Faith from stronger defenses)", run:s=>{
-        if(s.gold<15){ s.faith+=1; return "There's barely enough coin for minor repairs, but Brask makes it count. (+1 faith)"; }
-        s.gold-=15; s.faith+=4;
-        adjustTrust(s,'brask',8,'Backed fortifications over Ilun\'s warding rite.'); adjustTrust(s,'ilun',-7,'Watched coin meant for the old wards go to stonework instead.');
-        adjustFriction(s,'ilun','brask',-35);
-        return "The walls go up reinforced and the garrison sleeps easier for it. Ilun says nothing, which from him is its own kind of disappointment. (-15 gold, +4 faith, Brask trusts you more, Ilun trusts you less)";
-      }},
-      {label:"Split the coin between both, half-measures all around (small loss for both, friction lingers)", run:s=>{
-        if(s.gold>=15) s.gold-=15;
-        adjustTrust(s,'ilun',-3,'Watched the rite get done at half-strength.'); adjustTrust(s,'brask',-3,'Watched the fortification budget get cut to make room for \'candles\'.');
-        adjustFriction(s,'ilun','brask',-10);
-        return "Half a rite, half a wall, and two people who each think you just proved the other one right about something. (Both trust you slightly less)";
-      }}
-    ]
-  },
-  {
-    id:'rivalry_seris_yenna', category:'rivalry', speaker:'narrator',
-    title:"What Intelligence Costs",
-    text:"Seris has a source inside a rival camp — a wounded informant who could be moved for treatment, or left in place to keep reporting a little longer at real risk to his life. Yenna isn't interested in the strategic calculus. 'You're talking about a person, my lord, not an asset with a use-by date.'",
-    choices:[
-      {label:"Leave him in place for the intelligence (+ Seris trust, − Yenna trust, weakens a random garrison)", run:s=>{
-        adjustTrust(s,'seris',8,'Backed keeping the informant in place over Yenna\'s objection.'); adjustTrust(s,'yenna',-9,'Watched you risk a wounded man\'s life for intelligence.');
-        adjustFriction(s,'seris','yenna',-35);
-        const targets=s.territories.filter(t=>!t.conquered && !t.final);
-        if(targets.length>0){ const t=targets[Math.floor(Math.random()*targets.length)]; t.garrison=Math.max(2,t.garrison-3); return `The intelligence is worth exactly what Seris promised. ${t.name}'s garrison is weaker for it. Yenna doesn't speak to you for the rest of the day. (Seris trusts you more, Yenna trusts you noticeably less, ${t.name}'s garrison weakened)`; }
-        return "The intelligence comes through, though there's no target left to use it on. Yenna doesn't speak to you for the rest of the day regardless. (Seris trusts you more, Yenna trusts you noticeably less)";
-      }},
-      {label:"Pull him out for treatment (+ Yenna trust, − Seris trust, + Faith)", run:s=>{
-        adjustTrust(s,'yenna',8,'Backed pulling the informant out over Seris\'s objection.'); adjustTrust(s,'seris',-8,'Watched you sacrifice a source she\'d spent months cultivating.');
-        s.faith+=4; adjustFriction(s,'seris','yenna',-35);
-        return "He's moved out and treated. Seris doesn't argue, but you can tell she's already recalculating how much she tells you about a source before it's irreversible. (Yenna trusts you more, Seris trusts you less, +4 faith)";
-      }},
-      {label:"Let Seris decide on her own timeline (small loss for both, friction lingers)", run:s=>{
-        adjustTrust(s,'seris',-3,'Watched you refuse to actually weigh in on the decision.'); adjustTrust(s,'yenna',-3,'Watched you let the matter be decided without addressing her concern at all.');
-        adjustFriction(s,'seris','yenna',-10);
-        return "You decline to intervene either way. Seris takes that as permission. Yenna takes it as an answer she didn't want, just delivered quietly instead of directly. (Both trust you slightly less)";
-      }}
-    ]
-  }
 ];
 
 const EVENTS_BY_ID = {};
@@ -1988,9 +1810,6 @@ const SPEAKERS = {
   korrath:{name:'General Thessa Korrath', role:'Master of War', color:'#8a3232'},
   seris:{name:'Lady Vyra Seris', role:'Spymaster', color:'#7a4ea3'},
   ilun:{name:'Brother Ilun', role:'Keeper of Vigils', color:'#c79a47'},
-  dessa:{name:'Lady Dessa Wrenmoor', role:'Court Envoy', color:'#4a7a6a'},
-  brask:{name:'Captain Hale Brask', role:'Mercenary Captain', color:'#9a7a2e'},
-  yenna:{name:'Yenna Marrow', role:'Field Physician', color:'#5a6a9a'},
   unmaker:{name:'???', role:'A Voice in the Smoke', color:'#7a4ea3'},
   narrator:{name:'The Chronicle', role:'', color:'#9a8a76'},
   marshmother:{name:'A Marsh-Mother', role:'Cultist of the Unmaker', color:'#3a6a4a'},
@@ -2323,24 +2142,7 @@ const ITEM_DEFS = {
   ilunCandle:{ id:'ilunCandle', name:"Ilun's Vigil-Candle", kind:'consumable',
     desc:"Brother Ilun's own ward-candle, given freely. 'Burn it when you need the dark to recede a little.'",
     use:s=>{ s.corruption=Math.max(0,s.corruption-8); s.faith+=3; return "The candle burns down to nothing in a single night, and something in the hearth-shadows seems to flinch from the light. (-8 corruption, +3 faith)"; },
-    useLabel:'Use: -8 corruption, +3 faith' },
-  dessaSeal:{ id:'dessaSeal', name:"Dessa's Diplomatic Seal", kind:'consumable',
-    desc:"A wax seal carrying Lady Wrenmoor's own authority, lent to you for exactly one use. 'Spend it somewhere it matters.'",
-    use:s=>{
-      const targets=s.territories.filter(t=>!t.conquered && !t.final);
-      if(targets.length===0) return "There's no one left to negotiate with — every garrison in Vaelmoor already answers to you.";
-      const t=targets[Math.floor(Math.random()*targets.length)];
-      t.garrison=Math.max(2,t.garrison-4); s.faith+=2;
-      return `Under Dessa's seal, a quiet back-channel opens with ${t.name}. Its defenders are noticeably less eager to die for their masters now. (${t.name}'s garrison weakened, +2 faith)`;
-    }, useLabel:'Use: weaken a random garrison, +2 faith' },
-  braskContract:{ id:'braskContract', name:"Brask's Old Contract", kind:'consumable',
-    desc:"A mercenary contract Brask never burned, naming a Free Company unit that still technically owes him a favor.",
-    use:s=>{ s.soldiers+=6; return "Brask calls in an old debt. A company of mercenaries who clearly expected never to hear from him again show up anyway, grumbling. (+6 soldiers)"; },
-    useLabel:'Use: +6 soldiers' },
-  yennaTincture:{ id:'yennaTincture', name:"Yenna's Field Tincture", kind:'consumable',
-    desc:"Yenna's own reserve stock, handed over with a look that makes it clear she expects you to actually need it eventually.",
-    use:s=>{ s.soldiers+=4; s.faith+=2; return "Yenna's tincture does in an afternoon what normally takes a week of rest. (+4 soldiers, +2 faith)"; },
-    useLabel:'Use: +4 soldiers, +2 faith' }
+    useLabel:'Use: -8 corruption, +3 faith' }
 };
 
 const WEAPON_DROP_TABLE = {
@@ -3513,10 +3315,6 @@ function march(s,tid,quality,strikeLabel){
   const t=s.territories.find(x=>x.id===tid);
   const committed=Math.floor(s.soldiers*0.55);
   if(committed<6) return {text:"General Korrath refuses outright: 'We don't have enough men to march anywhere, my lord. Not yet — we'd be marching them to a grave, not a battle.'"};
-  // Choosing force over diplomacy/caution is the actual point of friction for these two pairs —
-  // it builds regardless of whether the attack succeeds, since the disagreement is about the choice itself.
-  adjustFriction(s,'korrath','dessa',3);
-  adjustFriction(s,'korrath','yenna',3);
   let atk=committed*(0.85+Math.random()*0.3);
   // The strike-timing call (a single well- or poorly-timed signal to advance) swings the attack
   // roll by up to ±20% — a real, meaningful effect, not a cosmetic flourish.
@@ -3559,10 +3357,6 @@ function parley(s,tid){
   if(t.final) return {text:"Brother Ilun shakes his head slowly. 'There is no parley with what waits in the Ember Wastes. Only an ending.'"};
   if(s.gold<18 || s.faith<5) return {text:"Seris spreads her hands. 'We've neither the coin nor the standing to even open talks, my lord.'"};
   s.gold-=18; s.faith-=5;
-  // Choosing diplomacy over force eases the tension Korrath's aggressive instincts create with the
-  // companions who'd rather negotiate or avoid casualties — a small, steady counterweight to march().
-  adjustFriction(s,'korrath','dessa',-2);
-  adjustFriction(s,'korrath','yenna',-2);
   const friendly=['Bandit Lords','The Free Company','The Drowned Fleet'];
   let chance=(friendly.includes(t.owner)?0.42:0.18) - (t.tier-1)*0.05;
   if(s.flags.serisTrustNetwork) chance+=0.08;
@@ -4004,10 +3798,7 @@ function openTalk(charId){
     const lines={
       korrath:"'Walls hold. Men train. Whatever you're planning, lord, say the word and we move.'",
       seris:"'The realm has more eyes on it than you'd think, my lord — most of them mine, the rest I'm working on.'",
-      ilun:"'The wards hold, for now. The dreams have not gotten quieter. I would tell you if they had.'",
-      dessa:"'Three lords still think you're worth negotiating with instead of fighting. I'd like to keep it that way, if it's all the same to you.'",
-      brask:"'Men get paid, men show up. That's the whole secret, lord. Don't let anyone tell you it's more complicated than that.'",
-      yenna:"'Fewer of your soldiers are dying of wounds that didn't have to kill them. That's the only metric I actually care about.'"
+      ilun:"'The wards hold, for now. The dreams have not gotten quieter. I would tell you if they had.'"
     };
     document.getElementById('talkChoices').innerHTML=`<p class="travel-result">${lines[charId]}</p>`;
   };
@@ -4041,10 +3832,7 @@ function companionFavorLabel(charId){
   return {
     korrath:"Ask Korrath to personally train the garrison (+ Soldiers, + Faith)",
     seris:"Ask Seris to scout a rival territory (weakens a random garrison)",
-    ilun:"Ask Ilun for a blessing before your next march (− Corruption, + Faith)",
-    dessa:"Ask Dessa to open back-channel talks (costs Gold, weakens a random garrison, + Faith)",
-    brask:"Ask Brask to put the word out for hired swords (costs Gold, + Soldiers)",
-    yenna:"Ask Yenna to tend the wounded properly (+ Soldiers, − Grain)"
+    ilun:"Ask Ilun for a blessing before your next march (− Corruption, + Faith)"
   }[charId];
 }
 function companionFavor(charId, s){
@@ -4054,30 +3842,9 @@ function companionFavor(charId, s){
     if(targets.length===0) return "Seris spreads her hands. 'Nothing left to scout, my lord. You've taken it all.'";
     const t=targets[Math.floor(Math.random()*targets.length)];
     t.garrison=Math.max(2,t.garrison-2);
-    adjustFriction(s,'seris','yenna',2); adjustFriction(s,'seris','dessa',2);
     return `Seris returns three days later with a hand-drawn map of ${t.name}'s weak points. (${t.name}'s garrison weakened)`;
   }
   if(charId==='ilun'){ s.corruption=Math.max(0,s.corruption-5); s.faith+=3; return "Ilun's blessing is quiet, old, and oddly heavy — like something settling back into place. (-5 corruption, +3 faith)"; }
-  if(charId==='dessa'){
-    if(s.gold<12) return "Dessa spreads her hands. 'Back-channels aren't free, my lord. Not even mine.'";
-    const targets=s.territories.filter(t=>!t.conquered && !t.final);
-    if(targets.length===0) return "Dessa shrugs. 'There's no one left to talk to. You've out-negotiated the entire map.'";
-    s.gold-=12; s.faith+=2;
-    const t=targets[Math.floor(Math.random()*targets.length)];
-    t.garrison=Math.max(2,t.garrison-3);
-    return `Dessa's letters reach ${t.name} before your soldiers do. Its garrison is noticeably less willing to die for its masters. (-12 gold, ${t.name}'s garrison weakened, +2 faith)`;
-  }
-  if(charId==='brask'){
-    if(s.gold<20) return "Brask taps the table. 'Hired swords want coin up front, lord. That's the whole arrangement.'";
-    s.gold-=20; s.soldiers+=5;
-    adjustFriction(s,'brask','korrath',2); adjustFriction(s,'ilun','brask',2);
-    return "Brask makes a few quiet calls to people who owe him favors of their own. A handful of free company veterans show up by morning. (-20 gold, +5 soldiers)";
-  }
-  if(charId==='yenna'){
-    s.soldiers+=4; s.grain-=5;
-    adjustFriction(s,'korrath','yenna',-2);
-    return "Yenna spends a full day on soldiers everyone else had already written off. A few surprise her by getting back up. (+4 soldiers, -5 grain)";
-  }
   return "";
 }
 
