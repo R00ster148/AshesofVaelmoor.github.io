@@ -310,6 +310,8 @@ h1,h2,h3,.label,.btn,.title{font-family:'Cinzel', serif;}
 .target-row{display:flex; gap:8px; margin-top:4px; flex-wrap:wrap;}
 .target-row select{flex:1; background:var(--bg-deep); color:var(--text); border:1px solid var(--border); padding:8px; font-family:'EB Garamond', serif; font-size:14px;}
 .target-row .action-btn{flex:0 0 auto;}
+.corrupt-btn{border-color:var(--corrupt); color:var(--corrupt);}
+.corrupt-btn:hover{background:var(--corrupt-deep); color:#fff;}
 .gate-note{font-size:12px; color:var(--text-dim); font-style:italic; margin-top:6px;}
 
 /* ---------- Activities ---------- */
@@ -587,7 +589,7 @@ h1,h2,h3,.label,.btn,.title{font-family:'Cinzel', serif;}
   <div class="app-footer">
     <a href="https://www.speedrun.com/Ashes_of_Vaelmoor" target="_blank" rel="noopener noreferrer" class="footer-link">Speedrun.com Leaderboards</a>
     <span class="footer-sep">·</span>
-    <a href="https://discord.com/invite/HUgRTHjzS" target="_blank" rel="noopener noreferrer" class="footer-link" id="discordLink">Join the Discord</a>
+    <a href="#" target="_blank" rel="noopener noreferrer" class="footer-link" id="discordLink">Join the Discord</a>
   </div>
 </div>
 
@@ -3203,6 +3205,7 @@ function renderActions(){
         <select id="targetSelect">${options}</select>
         <button class="action-btn" id="btnMarch">March</button>
         <button class="action-btn" id="btnParley">Parley</button>
+        <button class="action-btn corrupt-btn" id="btnCorrupt">Corrupt<small>No travel — costs Corruption instead</small></button>
       </div>
       ${gateNote}
     </div>
@@ -3216,9 +3219,11 @@ function renderActions(){
   document.getElementById('btnRest').onclick=()=>doAction(actionRest);
   document.getElementById('btnMarch').onclick=()=>{ startTravelSequence(document.getElementById('targetSelect').value, 'march'); };
   document.getElementById('btnParley').onclick=()=>{ startTravelSequence(document.getElementById('targetSelect').value, 'parley'); };
+  document.getElementById('btnCorrupt').onclick=()=>{ doAction(s=>corruptTarget(s, document.getElementById('targetSelect').value)); };
   if(targets.length===0){
     document.getElementById('btnMarch').disabled=true;
     document.getElementById('btnParley').disabled=true;
+    document.getElementById('btnCorrupt').disabled=true;
   }
   if(held.length>0){
     document.getElementById('btnVisit').onclick=()=>doAction(s=>actionVisitProvince(s, document.getElementById('visitSelect').value));
@@ -3369,6 +3374,30 @@ function parley(s,tid){
     t.garrison+=2;
     return {text:`The talks collapse before they truly begin. ${t.owner} doubles its watch along the border. (-18 gold, -5 faith, garrison reinforced)`};
   }
+}
+
+// The Corrupted Path: a second way to take ground, channeling the Unmaker's own influence to
+// hollow a garrison out from within rather than marching on it or negotiating with it. Costs
+// corruption instead of soldiers and gold, is instant (no travel sequence), and almost always
+// works — but every use pushes you toward the worst ending, and carries a real chance of an
+// immediate corruption backlash. This is the "fast but dangerous" alternative to the slow,
+// safe King's Road grind.
+function corruptTarget(s, tid){
+  const t=s.territories.find(x=>x.id===tid);
+  if(t.final) return {text:"Brother Ilun goes pale. 'Not there. Whatever's in the Ember Wastes is not something you want owing you a favor.'"};
+  if(s.corruption>=85) return {text:"Something in you refuses to answer the call this time — or perhaps it simply doesn't need to ask permission anymore. Either way, nothing happens."};
+  const cost=10+t.tier*4;
+  if(s.corruption+cost>100) return {text:`Even the Unmaker's patience has limits tonight. ${t.name} is too well-defended for so small an offering.`};
+  s.corruption+=cost;
+  t.conquered=true; t.garrison=0; t.unrest=0; t.wonByForce=true;
+  queueAftermath(s,t);
+  let backlash='';
+  if(Math.random()<0.3){
+    const dmg=4+Math.floor(Math.random()*5);
+    s.soldiers=Math.max(0,s.soldiers-dmg); s.faith-=5;
+    backlash=` Something answers back, briefly, before the wards reassert themselves. (-${dmg} soldiers, -5 faith)`;
+  }
+  return {text:`${t.name}'s garrison turns on itself in the night — officers second-guessing orders, soldiers seeing things that aren't there, until there's no one left willing to hold the line by morning. You didn't lift a blade. (+${cost} corruption)${backlash}`};
 }
 
 /* ===================== TRAVEL SEQUENCE ===================== */
