@@ -3236,7 +3236,10 @@ function actionLevy(s){
   if(s.gold<25) return {text:"Korrath shakes her head. 'No coin, no swords, my lord. That's how it's always worked.'"};
   const cap=soldierCap(s);
   if(s.soldiers>=cap) return {text:`Korrath waves off the idea. 'We've no more billets, no more bread to feed them, and no more faith in the smallfolk to spare us their sons. ${s.soldiers} is all Ashveil Hold can field right now.'`};
-  s.gold-=25; s.soldiers+=Math.min(5, cap-s.soldiers); s.faith-=2;
+  const gained=Math.min(5, cap-s.soldiers);
+  s.gold-=25; s.soldiers+=gained; s.faith-=2;
+  s.flags.__protectedSoldierFloor=s.soldiers; // guarantee this count survives same-turn starvation
+  s.flags.__protectedSoldierGain=(s.flags.__protectedSoldierGain||0)+gained;
   return {text:"New levies march into Ashveil Hold's yard, frightened and unready — but they are soldiers now."};
 }
 function actionForage(s){ s.grain+=10; s.gold+=4; return {text:"Foraging parties and quiet trade with neighboring hamlets bring in supplies."}; }
@@ -3245,7 +3248,15 @@ function actionFortify(s){
   s.gold-=15; s.faith+=3;
   return {text:"Masons reinforce Ashveil Hold's old walls through the night. The garrison sleeps a little easier."};
 }
-function actionRest(s){ s.faith+=6; s.soldiers=Math.min(soldierCap(s), s.soldiers+2); return {text:"A day of rest. A few stragglers and deserters trickle back to the banner, and the camp's mood lightens."}; }
+function actionRest(s){
+  s.faith+=6;
+  const gained=Math.min(2, Math.max(0, soldierCap(s)-s.soldiers));
+  s.soldiers+=gained;
+  s.flags.__protectedSoldierFloor=s.soldiers;
+  s.flags.__protectedSoldierGain=(s.flags.__protectedSoldierGain||0)+gained;
+  s.flags.__protectedFaithFloor=s.faith; // faith gain is also guaranteed this turn
+  return {text:"A day of rest. A few stragglers and deserters trickle back to the banner, and the camp's mood lightens."};
+}
 
 // Faith and conquered provinces both expand how large an army Ashveil Hold can actually field —
 // this is the soft cap that keeps Levy from being an infinite-soldiers button.
@@ -3633,6 +3644,15 @@ function upkeep(){
     state.soldiers-=deserters; state.faith-=8; state.grain=0;
     addLog(state, `Starvation stalks the camp. ${deserters} soldiers slip away into the night.`);
   }
+  // Guarantee: whatever soldiers the action explicitly promised can't be taken away by this
+  // same turn's starvation. Enforce a floor of (pre-action count + protected gain), capped at
+  // the current soldier cap so the protection can never inflate beyond the real maximum.
+  const protectedFloor=state.flags.__protectedSoldierFloor||0;
+  if(protectedFloor>0){
+    state.soldiers=Math.min(soldierCap(state), Math.max(state.soldiers, protectedFloor));
+  }
+  state.flags.__protectedSoldierFloor=0;
+  state.flags.__protectedSoldierGain=0;
   state.territories.forEach(t=>{ if(t.conquered){ state.gold+=t.goldInc; state.grain+=t.grainInc; } });
   if(state.flags.courtMarket) state.gold+=4;
   applyEquippedWeaponUpkeep(state);
@@ -3661,6 +3681,14 @@ function upkeep(){
   }
   checkWorldEvents(state);
   checkUnrestAndRevolts(state);
+  // Apply guaranteed floors last — after every penalty has had its say — so the numbers
+  // the action buttons promised always net through regardless of what fired this turn.
+  const protectedSoldierFloor=state.flags.__protectedSoldierFloor||0;
+  if(protectedSoldierFloor>0) state.soldiers=Math.min(soldierCap(state), Math.max(state.soldiers, protectedSoldierFloor));
+  state.flags.__protectedSoldierFloor=0; state.flags.__protectedSoldierGain=0;
+  const protectedFaithFloor=state.flags.__protectedFaithFloor||0;
+  if(protectedFaithFloor>0) state.faith=Math.min(100, Math.max(state.faith, protectedFaithFloor));
+  state.flags.__protectedFaithFloor=0;
   clampAll();
 }
 
@@ -3829,22 +3857,49 @@ function openTalk(charId){
 }
 
 function companionFavorLabel(charId){
+  const band=state ? trustBand(state.companions[charId].trust) : 'trusted';
+  const devoted=band==='devoted';
   return {
-    korrath:"Ask Korrath to personally train the garrison (+ Soldiers, + Faith)",
-    seris:"Ask Seris to scout a rival territory (weakens a random garrison)",
-    ilun:"Ask Ilun for a blessing before your next march (− Corruption, + Faith)"
+    korrath: devoted
+      ? "Ask Korrath to lead an intensive war drill (++ Soldiers, ++ Faith)"
+      : "Ask Korrath to personally train the garrison (+ Soldiers, + Faith)",
+    seris: devoted
+      ? "Ask Seris to run a deep-cover operation (weakens a garrison more + Gold)"
+      : "Ask Seris to scout a rival territory (weakens a random garrison)",
+    ilun: devoted
+      ? "Ask Ilun for a full warding ritual (−− Corruption, ++ Faith)"
+      : "Ask Ilun for a blessing before your next march (− Corruption, + Faith)"
   }[charId];
 }
 function companionFavor(charId, s){
-  if(charId==='korrath'){ s.soldiers+=3; s.faith+=2; return "Korrath takes the garrison through drills personally for a day. The men fight harder for a general who still bothers to show up. (+3 soldiers, +2 faith)"; }
+  const devoted=trustBand(s.companions[charId].trust)==='devoted';
+  if(charId==='korrath'){
+    if(devoted){
+      s.soldiers+=6; s.faith+=4;
+      return "Korrath runs the garrison through a full day of live drills — no rest, no mercy, no holding back. They come out the other side genuinely better soldiers. (+6 soldiers, +4 faith)";
+    }
+    s.soldiers+=3; s.faith+=2;
+    return "Korrath takes the garrison through drills personally for a day. The men fight harder for a general who still bothers to show up. (+3 soldiers, +2 faith)";
+  }
   if(charId==='seris'){
     const targets=s.territories.filter(t=>!t.conquered && !t.final);
     if(targets.length===0) return "Seris spreads her hands. 'Nothing left to scout, my lord. You've taken it all.'";
     const t=targets[Math.floor(Math.random()*targets.length)];
+    if(devoted){
+      t.garrison=Math.max(2,t.garrison-5); s.gold+=8;
+      return `Seris doesn't just return with maps this time — she returns with names, bribes already paid, and three officers at ${t.name} who've quietly changed their allegiances. (${t.name}'s garrison weakened significantly, +8 gold)`;
+    }
     t.garrison=Math.max(2,t.garrison-2);
     return `Seris returns three days later with a hand-drawn map of ${t.name}'s weak points. (${t.name}'s garrison weakened)`;
   }
-  if(charId==='ilun'){ s.corruption=Math.max(0,s.corruption-5); s.faith+=3; return "Ilun's blessing is quiet, old, and oddly heavy — like something settling back into place. (-5 corruption, +3 faith)"; }
+  if(charId==='ilun'){
+    if(devoted){
+      s.corruption=Math.max(0,s.corruption-10); s.faith+=5;
+      return "Ilun performs the old full warding rite — the one that takes all night and leaves him grey by morning. Whatever was listening in the shadows of the Hold sounds quieter afterward. (-10 corruption, +5 faith)";
+    }
+    s.corruption=Math.max(0,s.corruption-5); s.faith+=3;
+    return "Ilun's blessing is quiet, old, and oddly heavy — like something settling back into place. (-5 corruption, +3 faith)";
+  }
   return "";
 }
 
