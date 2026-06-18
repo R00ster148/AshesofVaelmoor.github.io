@@ -3233,19 +3233,19 @@ function renderChronicle(){
 
 /* ---------- Actions ---------- */
 function actionLevy(s){
-  if(s.gold<30) return {text:"Korrath shakes her head. 'No coin, no swords, my lord. That's how it's always worked.'"};
+  if(s.gold<25) return {text:"Korrath shakes her head. 'No coin, no swords, my lord. That's how it's always worked.'"};
   const cap=soldierCap(s);
   if(s.soldiers>=cap) return {text:`Korrath waves off the idea. 'We've no more billets, no more bread to feed them, and no more faith in the smallfolk to spare us their sons. ${s.soldiers} is all Ashveil Hold can field right now.'`};
-  s.gold-=30; s.soldiers+=Math.min(4, cap-s.soldiers); s.faith-=2; s.grain-=4;
+  s.gold-=25; s.soldiers+=Math.min(5, cap-s.soldiers); s.faith-=2;
   return {text:"New levies march into Ashveil Hold's yard, frightened and unready — but they are soldiers now."};
 }
-function actionForage(s){ s.grain+=9; s.gold+=5; return {text:"Foraging parties and quiet trade with neighboring hamlets bring in supplies."}; }
+function actionForage(s){ s.grain+=10; s.gold+=4; return {text:"Foraging parties and quiet trade with neighboring hamlets bring in supplies."}; }
 function actionFortify(s){
   if(s.gold<15) return {text:"There's not enough coin in the treasury to so much as buy nails, let alone fortify the walls."};
   s.gold-=15; s.faith+=3;
   return {text:"Masons reinforce Ashveil Hold's old walls through the night. The garrison sleeps a little easier."};
 }
-function actionRest(s){ s.faith+=5; s.soldiers=Math.min(soldierCap(s), s.soldiers+1); return {text:"A day of rest. A few stragglers and deserters trickle back to the banner, and the camp's mood lightens."}; }
+function actionRest(s){ s.faith+=6; s.soldiers=Math.min(soldierCap(s), s.soldiers+2); return {text:"A day of rest. A few stragglers and deserters trickle back to the banner, and the camp's mood lightens."}; }
 
 // Faith and conquered provinces both expand how large an army Ashveil Hold can actually field —
 // this is the soft cap that keeps Levy from being an infinite-soldiers button.
