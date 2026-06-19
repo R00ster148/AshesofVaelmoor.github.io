@@ -3168,13 +3168,23 @@ function activityIcon(key){
   }
 }
 
+function terrainHint(kind){
+  switch(kind){
+    case 'forest':   return ', forest — defenders have cover';
+    case 'marsh':    return ', marsh — hard going for attackers';
+    case 'mountain': return ', mountain — high ground favors defenders';
+    case 'keep':     return ', keep — fortified walls, rich spoils';
+    case 'coast':    return ', coast — chaotic, unpredictable';
+    default:         return '';
+  }
+}
 function renderActions(){
   const el=document.getElementById('actionsGrid');
   const targets=attackableTargets(state);
   const byRegion={};
   targets.forEach(t=>{ (byRegion[t.region]=byRegion[t.region]||[]).push(t); });
   const options=Object.entries(byRegion).map(([region,list])=>
-    `<optgroup label="${region}">${list.map(t=>`<option value="${t.id}">${t.name} (garrison ${t.garrison})</option>`).join('')}</optgroup>`
+    `<optgroup label="${region}">${list.map(t=>`<option value="${t.id}">${t.name} (garrison ${t.garrison}${terrainHint(t.kind)})</option>`).join('')}</optgroup>`
   ).join('');
   const gateNote = targets.length===0
     ? `<div class="gate-note">No provinces currently border your holdings. Hold actions until your frontier opens.</div>`
@@ -3332,17 +3342,53 @@ function march(s,tid,quality,strikeLabel){
   const q = typeof quality==='number' ? quality : 0;
   atk *= (1 + q*0.2);
   const strikeNote = strikeLabel ? ` ${strikeLabel}` : '';
-  const def=t.garrison*(0.88+Math.random()*0.28);
+  let def=t.garrison*(0.88+Math.random()*0.28);
+  // Terrain modifiers — each kind shifts the odds in ways that reflect the actual ground.
+  // These are applied after the base rolls so the strike-timing bonus still interacts with them.
+  let terrainNote='';
+  let winLossMultiplier=1; // scales losses on a successful attack (harder terrain = bloodier victories)
+  let defeatLossMultiplier=1; // scales losses on a failed attack
+  switch(t.kind){
+    case 'forest':
+      // Dense cover: defenders can melt back into the treeline, draw attackers into ambushes.
+      def*=1.15; winLossMultiplier=1.2;
+      terrainNote=" The forest swallows defenders as fast as you cut them down — every yard of ground costs more blood than it should.";
+      break;
+    case 'marsh':
+      // Waterlogged ground punishes advancing columns far more than dug-in defenders.
+      atk*=0.88; defeatLossMultiplier=1.25;
+      terrainNote=" The marsh makes every advance a stumble — your soldiers reach the defenders half-drowned and half-spent.";
+      break;
+    case 'mountain':
+      // Chokepoints and high ground: the defender sees you coming from a mile away.
+      def*=1.20; winLossMultiplier=1.15;
+      terrainNote=" The high ground belongs to the defenders, and they know how to use it.";
+      break;
+    case 'keep':
+      // Stone walls and murder-holes: costly to crack, but rich spoils when you do.
+      def*=1.25; winLossMultiplier=1.1;
+      terrainNote=" The keep's walls give every defender the weight of a dozen soldiers.";
+      break;
+    case 'coast':
+      // Tidal timing, sea-fog, and shifting beaches introduce chaotic variance for both sides.
+      { const coastSwing=0.9+Math.random()*0.2;
+        atk*=coastSwing; def*=(1.9-coastSwing); } // swing favors one side but we don't know which
+      terrainNote=" The tide and the sea-fog make a mockery of any careful plan on either side.";
+      break;
+    // farmland and ruin: open ground, no terrain advantage to anyone
+  }
   let gateNote='';
   if(tid==='brackenfort' && s.flags.brackenfortWeak){
     atk*=1.25; delete s.flags.brackenfortWeak;
     gateNote=" The bribed gate holds true — your attack strikes harder than the defenders expect.";
   }
   if(atk>def){
-    const losses=Math.round(committed*(def/atk)*0.55);
+    const losses=Math.round(committed*(def/atk)*0.55*winLossMultiplier);
     s.soldiers-=losses;
     if(t.final){ s.victory=true; return {text:`${strikeNote} The Hollow King's wards shatter like cheap glass. Your soldiers pour into the Ember Wastes as the violet fire ahead rears up to meet you.`}; }
-    t.conquered=true; t.garrison=0; t.unrest=0; t.wonByForce=true; s.gold+=15+t.tier*5;
+    t.conquered=true; t.garrison=0; t.unrest=0; t.wonByForce=true;
+    const keepBonus = t.kind==='keep' ? 5 : 0;
+    s.gold+=15+t.tier*5+keepBonus;
     queueAftermath(s,t);
     let dropNote='';
     const dropped=rollWeaponDrop(s,t);
@@ -3351,13 +3397,14 @@ function march(s,tid,quality,strikeLabel){
       dropNote=` Among the spoils, your soldiers recover ${dropped.name} — ${dropped.desc}`;
       logButterfly(s,'item-found',`Found ${dropped.name}`,`Recovered from the fall of ${t.name}. ${dropped.effectLabel}`);
     }
-    return {text:`${strikeNote} ${CONQUER_TEXT[tid]||defaultConquerText(t)}${gateNote} (-${losses} soldiers, +${15+t.tier*5} gold)${dropNote}`};
+    const goldTotal=15+t.tier*5+keepBonus;
+    return {text:`${strikeNote} ${CONQUER_TEXT[tid]||defaultConquerText(t)}${gateNote}${terrainNote} (-${losses} soldiers, +${goldTotal} gold)${dropNote}`};
   } else {
-    const losses=Math.round(committed*0.8);
+    const losses=Math.round(committed*0.8*defeatLossMultiplier);
     s.soldiers-=losses; s.faith-=6;
     const floor = t.final ? 20 : Math.max(4, Math.round(t.garrison*0.4));
     t.garrison=Math.max(floor,Math.round(t.garrison-atk*0.25));
-    return {text:`${strikeNote} ${DEFEAT_TEXT[tid]||defaultDefeatText(t)}${gateNote} (-${losses} soldiers, -6 faith)`};
+    return {text:`${strikeNote} ${DEFEAT_TEXT[tid]||defaultDefeatText(t)}${gateNote}${terrainNote} (-${losses} soldiers, -6 faith)`};
   }
 }
 function defaultConquerText(t){ return `${t.name} falls after a hard-fought engagement — ${t.owner}'s banners are cut down and your own raised in their place.`; }
